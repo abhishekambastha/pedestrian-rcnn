@@ -44,6 +44,21 @@ def prepare_roidb(imdb):
 def filter_roidb(roidb):
     """Remove roidb entries that have no usable RoIs."""
 
+    def valid_bbox(entry):
+        height = entry.get('height')
+        width = entry.get('width')
+        boxes = entry.get('boxes')
+        valid = True
+        for box in boxes:
+            if box[0] > width or box[2] > width:
+                valid = False
+                break
+            if box[1] > height or box[3] > height:
+                valid = False
+                break
+
+        return valid
+
     def is_valid(entry):
         # Valid images have:
         #   (1) At least one foreground RoI OR
@@ -56,16 +71,18 @@ def filter_roidb(roidb):
                            (overlaps >= cfg.TRAIN.BG_THRESH_LO))[0]
         # image is only valid if such boxes exist
         valid = len(fg_inds) > 0 or len(bg_inds) > 0
+        if valid:
+            valid = valid_bbox(entry)
         return valid
 
     num = len(roidb)
-    filtered_roidb = [entry for entry in roidb if is_valid(entry)]
+    filtered_roidb = [entry for entry in roidb if is_valid(entry) and valid_bbox(entry)]
     num_after = len(filtered_roidb)
     print 'Filtered {} roidb entries: {} -> {}'.format(num - num_after,
                                                        num, num_after)
     return filtered_roidb
 
+
 if __name__ == '__main__':
     from imdb.caltech_imdb import caltech_imdb
     imdb = caltech_imdb('train', './data')
-
